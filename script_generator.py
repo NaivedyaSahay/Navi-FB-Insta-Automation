@@ -1,8 +1,14 @@
 """
 script_generator.py
 -------------------
-Generates high-retention video scripts optimized for Facebook & Instagram Reels.
-Uses Groq API (Primary) with fallback to Gemini AI or structured templates.
+Generates high-retention video scripts optimised for Facebook & Instagram Reels.
+
+Model priority chain (automatic fallback):
+  1. Groq: groq/compound
+  2. Groq: qwen/qwen3.6-27b
+  3. Groq: openai/gpt-oss-120b
+  4. Gemini: gemini-3.6-flash  (if GEMINI_API_KEY is set)
+  5. Rich curated offline template
 
 Public API:
     result = generate_script(topic="Mind-blowing AI facts")
@@ -22,123 +28,200 @@ import json
 import logging
 import re
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 import config
 
 logger = logging.getLogger("script_generator")
 
-SYSTEM_PROMPT = """
-You are an expert viral content creator specializing in 35-55 second Facebook Reels & Instagram Reels.
-Your scripts are educational, highly engaging, fast-paced, and designed for maximum retention.
+# ── Model Priority List ───────────────────────────────────────────────────────
+GROQ_MODELS = [
+    config.GROQ_MODEL,          # primary (from .env, defaults to groq/compound)
+    "qwen/qwen3.6-27b",
+    "openai/gpt-oss-120b",
+]
 
-RULES FOR THE SCRIPT:
-1. Duration: 35 to 55 seconds when spoken naturally (approx 95 to 135 words). Must be engaging and thorough.
-2. Hook: The very first sentence MUST be an irresistible hook that grabs attention immediately.
-3. Flow: Use punchy, short sentences. Avoid complex jargon.
-4. NO stage directions, NO brackets like [Music], NO narrator tags. Output ONLY spoken words in the script.
-5. Tone: Fascinating, authoritative, warm, and engaging.
+SYSTEM_PROMPT = """\
+You are an elite viral content creator for Facebook & Instagram Reels with proven 10M+ view videos
+in Science, AI, Psychology, Space, History, and Human Behaviour niches.
 
-You MUST respond strictly in valid JSON with this exact schema:
+Your scripts are educational, deeply engaging, fast-paced, and designed for maximum scroll-stopping retention.
+
+SCRIPT RULES (critical — follow exactly):
+1. Duration: Exactly 35-55 seconds spoken naturally (95-135 words). Must be educational and punchy.
+2. HOOK (first 15 words): One irresistible sentence that creates a CURIOSITY GAP or a SHOCKING FACT.
+   - "Scientists discovered your brain makes decisions 7 seconds before you're aware of it."
+   - "The Roman Empire fell for the exact same reason most businesses fail today."
+3. CORE (words 15-100): 3 fast, specific insight points. Short sentences. No filler. Every word earns its place.
+4. CLOSE (words 100-135): Memorable takeaway + strong CTA. e.g. "Like for more facts that rewire how you think."
+5. NO stage directions. NO [Music]. NO (pause). NO narrator tags. ONLY spoken words.
+6. Tone: Authoritative, warm, and genuinely fascinating — like a brilliant friend sharing a secret.
+
+You MUST respond with ONLY a valid JSON object matching this exact schema (no markdown, no extra text):
 {
-  "title": "Short catchy title for the video",
-  "script": "The full spoken text of the script from start to finish",
-  "fb_reels_caption": "Engaging Facebook Reels description with call to action",
-  "ig_reels_caption": "Engaging Instagram Reels caption with hashtags",
-  "hashtags": ["#Reels", "#Satisfying", "#Facts"],
-  "keywords": ["satisfying", "kinetic sand", "3d loop"]
+  "title": "<Short catchy title under 70 chars>",
+  "script": "<The full spoken text — 95 to 135 words. Count carefully.>",
+  "fb_reels_caption": "<Facebook Reels caption. Hook line + 2 bullet highlights + CTA. Under 300 chars.>",
+  "ig_reels_caption": "<Instagram Reels caption. Engaging + 5-8 specific hashtags. Under 300 chars.>",
+  "hashtags": ["#Reels", "#Facts", "#LearnOnReels", "<4-8 topic-specific tags>"],
+  "keywords": ["<4-6 SPECIFIC visual search terms for stock footage — not generic>"]
 }
+
+KEYWORDS RULES (critical for video quality):
+  BAD:  "science", "brain", "nature", "technology"
+  GOOD: "neurons firing brain scan", "roman forum ruins", "deep ocean bioluminescence", "quantum chip lab"
 """
 
-def _call_groq_api(prompt: str) -> Dict[str, Any] | None:
+
+def _call_groq_api(prompt: str) -> Optional[Dict[str, Any]]:
+    """Try Groq models in priority order; return parsed dict or None."""
     if not config.GROQ_API_KEY:
         return None
-    logger.info("Generating script via Groq API (%s)...", config.GROQ_MODEL)
+
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {config.GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
-    payload = {
-        "model": config.GROQ_MODEL,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Create a viral Reels script about: {prompt}"},
-        ],
-        "temperature": 0.7,
-        "response_format": {"type": "json_object"},
-    }
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=25)
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
-    except Exception as exc:
-        logger.warning("Groq API call failed: %s", exc)
-        return None
 
-def _call_gemini_api(prompt: str) -> Dict[str, Any] | None:
+    for model_name in GROQ_MODELS:
+        logger.info("Generating script via Groq (%s)...", model_name)
+        payload = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Create a viral Reels script about: {prompt}"},
+            ],
+            "temperature": 0.8,
+            "max_tokens": 1024,
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=25)
+            resp.raise_for_status()
+            raw = resp.json()["choices"][0]["message"]["content"]
+            # Strip thinking blocks from models that add reasoning
+            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+            raw = re.sub(r"^```(?:json)?", "", raw, flags=re.IGNORECASE)
+            raw = re.sub(r"```$", "", raw).strip()
+            if not raw:
+                logger.warning("Groq model %s returned empty response.", model_name)
+                continue
+            data = json.loads(raw)
+            if data.get("script") and len(data["script"].split()) >= 60:
+                logger.info("Groq model %s succeeded.", model_name)
+                return data
+        except Exception as exc:
+            logger.warning("Groq model %s failed: %s", model_name, exc)
+
+    return None
+
+
+def _call_gemini_api(prompt: str) -> Optional[Dict[str, Any]]:
+    """Fallback: Gemini REST API."""
     if not config.GEMINI_API_KEY:
         return None
-    logger.info("Generating script via Gemini API (%s)...", config.GEMINI_MODEL)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent?key={config.GEMINI_API_KEY}"
+    logger.info("Generating script via Gemini (%s)...", config.GEMINI_MODEL)
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{config.GEMINI_MODEL}:generateContent?key={config.GEMINI_API_KEY}"
+    )
     headers = {"Content-Type": "application/json"}
-    full_prompt = f"{SYSTEM_PROMPT}\n\nUser Request: Create a viral Reels script about: {prompt}"
+    full_prompt = f"{SYSTEM_PROMPT}\n\nCreate a viral Reels script about: {prompt}"
     payload = {
         "contents": [{"parts": [{"text": full_prompt}]}],
-        "generationConfig": {"responseMimeType": "application/json"},
+        "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8},
     }
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=25)
         resp.raise_for_status()
-        text_out = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-        return json.loads(text_out)
+        raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+        data = json.loads(raw)
+        if data.get("script"):
+            logger.info("Gemini fallback succeeded.")
+            return data
     except Exception as exc:
         logger.warning("Gemini API call failed: %s", exc)
-        return None
+    return None
 
-def _template_fallback(topic: str) -> Dict[str, Any]:
-    logger.info("Using offline template script generator for: %s", topic)
+
+def _rich_template_fallback(topic: str) -> Dict[str, Any]:
+    """High-quality curated template used only when all APIs fail."""
+    logger.info("Using rich offline template for: %s", topic)
     return {
-        "title": f"Fascinating Facts About {topic[:30]}",
+        "title": f"Mind-Blowing Facts About {topic[:35]}",
         "script": (
-            f"Did you know this mind-blowing fact about {topic}? "
-            "Scientists and researchers recently uncovered something that changes how we view this completely. "
-            "When you look closely at the underlying patterns, the results are almost unbelievable. "
-            "Share this with someone who loves learning new facts every day!"
+            f"Here is something about {topic} that will permanently change how you see the world. "
+            "For centuries, scientists assumed this was impossible. Then in the last decade, "
+            "three independent research teams proved the opposite. "
+            "The first discovery: the mechanism is far more ancient than we imagined. "
+            "The second: human intuition consistently predicted it before formal proof. "
+            "The third — and most shocking — it scales perfectly to explain things happening right now. "
+            "When you understand this, every headline starts making a different kind of sense. "
+            "Like and follow for facts that genuinely expand how you understand reality."
         ),
-        "fb_reels_caption": f"Explore fascinating facts about {topic}! Like and follow for daily interesting Reels. #Satisfying #Facts",
-        "ig_reels_caption": f"Mind-blowing breakdown of {topic} 🧠✨ Follow @ourchannel for daily satisfying educational videos! #Reels #Satisfying #Education",
-        "hashtags": ["#Reels", "#Satisfying", "#Facts", "#LearnOnReels", "#Viral"],
-        "keywords": ["satisfying", "kinetic sand", "3d loop", "asmr"],
+        "fb_reels_caption": (
+            f"🧠 {topic} facts that will expand your mind!\n"
+            "• Backed by research\n"
+            "• Explained simply\n"
+            "Like & follow for daily mind-expanding Reels. #Facts #LearnOnReels"
+        ),
+        "ig_reels_caption": (
+            f"Mind-blowing breakdown of {topic} 🔬✨\n"
+            "Follow for daily educational Reels!\n"
+            "#Reels #Facts #LearnOnReels #Education #Science #Knowledge #Viral #MindBlown"
+        ),
+        "hashtags": [
+            "#Reels", "#Facts", "#LearnOnReels", "#Education",
+            "#Science", "#Knowledge", "#Viral", "#MindBlown", "#Interesting",
+        ],
+        "keywords": [
+            "science laboratory close-up", "researcher microscope",
+            "knowledge education concept", "human brain neurons"
+        ],
     }
 
+
 def generate_script(topic: str) -> Dict[str, Any]:
-    """Generate script JSON via Groq -> Gemini -> Offline fallback."""
+    """Generate script JSON via Groq → Gemini → Rich offline fallback."""
     logger.info("Generating Reels script for topic: '%s'", topic)
 
-    # 1. Try Groq API
+    # 1. Try Groq (priority model chain)
     data = _call_groq_api(topic)
 
-    # 2. Try Gemini API if Groq failed or not set
+    # 2. Try Gemini
     if not data:
         data = _call_gemini_api(topic)
 
-    # 3. Fallback to offline template
+    # 3. Rich offline fallback
     if not data:
-        data = _template_fallback(topic)
+        data = _rich_template_fallback(topic)
 
-    # Clean script formatting
-    script_clean = data.get("script", "")
-    script_clean = re.sub(r"\[.*?\]|\(.*?\)", "", script_clean)  # remove brackets
-    script_clean = re.sub(r"\s+", " ", script_clean).strip()
-    data["script"] = script_clean
+    # ── Clean script text ─────────────────────────────────────────────────────
+    script_text = data.get("script", "")
+    script_text = re.sub(r"\[.*?\]|\(.*?\)", "", script_text)   # remove stage directions
+    script_text = re.sub(r"<think>.*?</think>", "", script_text, flags=re.DOTALL)
+    script_text = re.sub(r"\s+", " ", script_text).strip()
+    data["script"] = script_text
 
-    logger.info("Script successfully generated (%d words). Title: '%s'",
-                len(script_clean.split()), data.get("title", ""))
+    # ── Enforce limits ────────────────────────────────────────────────────────
+    words = data["script"].split()
+    if len(words) > 140:
+        data["script"] = " ".join(words[:140])
+
+    data["title"] = data.get("title", topic)[:70]
+    data["fb_reels_caption"] = data.get("fb_reels_caption", "")[:300]
+    data["ig_reels_caption"] = data.get("ig_reels_caption", "")[:300]
+    data["hashtags"] = data.get("hashtags", ["#Reels", "#Facts"])[:12]
+    data.setdefault("keywords", ["science laboratory", "knowledge concept"])
+
+    logger.info(
+        "Script ready (%d words). Title: '%s'",
+        len(data["script"].split()), data.get("title", ""),
+    )
     return data
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    res = generate_script("How quantum computers work")
-    print(json.dumps(res, indent=2))
+    res = generate_script("How quantum computers will change encryption")
+    print(json.dumps(res, indent=2, ensure_ascii=False))

@@ -38,8 +38,9 @@ META_IG_USER_ID: str     = os.getenv("META_IG_USER_ID", "")      # Instagram Bus
 META_FB_PAGE_ID: str     = os.getenv("META_FB_PAGE_ID", "")      # Facebook Page ID
 
 # ── AI Model Settings ─────────────────────────────────────────────────────────
-GROQ_MODEL: str   = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+# groq/compound is the current primary model (llama-3.3-70b-versatile is retired)
+GROQ_MODEL: str   = os.getenv("GROQ_MODEL", "groq/compound")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 # ── TTS Voice Settings ────────────────────────────────────────────────────────
 TTS_VOICE: str  = os.getenv("TTS_VOICE", "en-US-ChristopherNeural")
