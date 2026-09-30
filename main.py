@@ -90,6 +90,7 @@ def run_pipeline(
     ig_caption = script_data.get("ig_reels_caption", "")
     keywords = script_data.get("keywords", ["ancient indian temple", "sacred fire ritual"])
     image_prompts = script_data.get("image_prompts", [])
+    scene_ratios = script_data.get("scene_ratios", [0.20, 0.32, 0.28, 0.20])
 
     logger.info("📜 Script Title: '%s'", title)
     logger.info("📝 Script Preview: '%s...'", script_text[:80])
@@ -113,6 +114,7 @@ def run_pipeline(
         script_text=script_text,
         keywords=keywords,
         image_prompts=image_prompts,
+        scene_ratios=scene_ratios,
         output_path=video_path,
     )
 

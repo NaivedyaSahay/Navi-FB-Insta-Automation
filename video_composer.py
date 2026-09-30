@@ -198,6 +198,7 @@ def compose_video(
     script_text: str = "",
     keywords: List[str] = None,
     image_prompts: List[str] = None,
+    scene_ratios: List[float] = None,
     output_path: Path | None = None,
 ) -> Path:
     """
@@ -221,8 +222,19 @@ def compose_video(
     else:
         final_audio = voice_clip
 
-    # 1. Fetch stitched visual background (AI mythological scenes or video clips)
-    bg_clip = get_satisfying_background(target_duration=duration, keywords=keywords, image_prompts=image_prompts)
+    # 1. Calculate synchronized scene durations matching narrative beats
+    clip_durations = None
+    if scene_ratios and len(scene_ratios) >= 4:
+        clip_durations = [duration * r for r in scene_ratios]
+        logger.info("Synchronized scene durations to narrative beats: %s", [round(d, 2) for d in clip_durations])
+
+    # 2. Fetch stitched visual background (100% AI mythological scenes with directional motion)
+    bg_clip = get_satisfying_background(
+        target_duration=duration,
+        keywords=keywords,
+        image_prompts=image_prompts,
+        clip_durations=clip_durations,
+    )
 
     # 2. Build caption overlay clips
     caption_chunks = _group_words_into_caption_chunks(word_timings or [], words_per_chunk=3)

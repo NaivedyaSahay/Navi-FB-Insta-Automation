@@ -77,10 +77,11 @@ def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> L
             for i, p in enumerate(prompts):
                 dest = config.OUTPUT_DIR / f"ai_scene_{i}.jpg"
                 enhanced_prompt = (
-                    f"{p}, cinematic 9:16 vertical mythological concept art, "
-                    f"hyperrealistic, 8k resolution, divine golden hour volumetric lighting, "
-                    f"dramatic atmosphere, highly detailed ornaments and facial features, "
-                    f"Unreal Engine 5 render, masterpiece"
+                    f"{p}, photorealistic live-action Indian mythological movie film still, "
+                    f"shot on 35mm anamorphic lens, 8k resolution, authentic ancient Vedic attire, "
+                    f"volumetric golden hour sunbeams, atmospheric dust and smoke particles, "
+                    f"realistic skin texture and pores, dramatic rim light, masterpiece, "
+                    f"no cartoon, no 3D animation, no CGI plastic, vertical 9:16 composition"
                 )
                 try:
                     logger.info("🎨 Generating AI Scene #%d: '%s'...", i + 1, p[:60] + "...")
@@ -144,6 +145,7 @@ def get_video_background(
     target_duration: float,
     keywords: List[str] = None,
     image_prompts: List[str] = None,
+    clip_durations: Optional[List[float]] = None,
 ):
     """
     Fetch and stitch topic-relevant visuals for background:
@@ -171,6 +173,7 @@ def get_video_background(
                 media_items=clip_paths,
                 target_duration=target_duration,
                 max_clip_duration=8.0,
+                clip_durations=clip_durations,
                 transition_duration=0.5,
                 crossfade=True,
                 mode="crop_cover",

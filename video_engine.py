@@ -129,17 +129,19 @@ def _apply_ken_burns_image(
     duration: float,
     target_w: int,
     target_h: int,
-    zoom_ratio: float = 1.08,
+    zoom_ratio: float = 1.10,
+    motion_type: str = "zoom_in",
 ) -> VideoFileClip | ImageClip:
     """
-    Creates a dynamic Ken Burns slow-zoom effect for static images to eliminate
-    static, robotic stills.
+    Creates dynamic cinematic camera motion (slow zoom-in, zoom-out, pan-right, tilt-up)
+    for static images, giving the feel of a high-budget live-action documentary.
     """
     pil_img = Image.open(str(image_path)).convert("RGB")
     src_w, src_h = pil_img.size
 
-    # Base scale to fill target_w x target_h
-    base_scale = max(target_w / src_w, target_h / src_h)
+    # Base scale to fill target_w x target_h with extra margin for panning
+    margin = 1.12
+    base_scale = max(target_w / src_w, target_h / src_h) * margin
     new_src_w = int(round(src_w * base_scale))
     new_src_h = int(round(src_h * base_scale))
     scaled_img = pil_img.resize((new_src_w, new_src_h), Image.Resampling.LANCZOS)
@@ -147,19 +149,46 @@ def _apply_ken_burns_image(
 
     def frame_transform(get_frame, t):
         progress = min(1.0, max(0.0, t / max(0.01, duration)))
-        cur_zoom = 1.0 + (zoom_ratio - 1.0) * progress
+
+        # Determine zoom and center offsets based on motion_type
+        if motion_type == "zoom_out":
+            cur_zoom = zoom_ratio - (zoom_ratio - 1.0) * progress
+            cx_offset = 0.0
+            cy_offset = 0.0
+        elif motion_type == "pan_right":
+            cur_zoom = 1.08
+            cx_offset = (progress - 0.5) * (new_src_w * 0.06)
+            cy_offset = 0.0
+        elif motion_type == "pan_left":
+            cur_zoom = 1.08
+            cx_offset = (0.5 - progress) * (new_src_w * 0.06)
+            cy_offset = 0.0
+        elif motion_type == "tilt_up":
+            cur_zoom = 1.08
+            cx_offset = 0.0
+            cy_offset = (0.5 - progress) * (new_src_h * 0.06)
+        else:  # default "zoom_in"
+            cur_zoom = 1.0 + (zoom_ratio - 1.0) * progress
+            cx_offset = 0.0
+            cy_offset = 0.0
 
         # Sub-window inside scaled image
         win_w = target_w / cur_zoom
         win_h = target_h / cur_zoom
 
-        center_x = new_src_w / 2.0
-        center_y = new_src_h / 2.0
+        center_x = (new_src_w / 2.0) + cx_offset
+        center_y = (new_src_h / 2.0) + cy_offset
 
-        x1 = max(0, int(center_x - win_w / 2.0))
-        y1 = max(0, int(center_y - win_h / 2.0))
-        x2 = min(new_src_w, int(x1 + win_w))
-        y2 = min(new_src_h, int(y1 + win_h))
+        x1 = max(0, int(round(center_x - win_w / 2.0)))
+        y1 = max(0, int(round(center_y - win_h / 2.0)))
+        x2 = min(new_src_w, int(round(x1 + win_w)))
+        y2 = min(new_src_h, int(round(y1 + win_h)))
+
+        # Boundary safety clamp
+        if x2 - x1 < int(win_w):
+            x1 = max(0, x2 - int(win_w))
+        if y2 - y1 < int(win_h):
+            y1 = max(0, y2 - int(win_h))
 
         sub = img_array[y1:y2, x1:x2].astype(np.uint8)
         resized_sub = Image.fromarray(sub).resize((target_w, target_h), Image.Resampling.LANCZOS)
@@ -177,16 +206,11 @@ def normalize_clip_to_916(
     duration: Optional[float] = None,
     mode: str = "crop_cover",
     ken_burns: bool = True,
+    motion_type: str = "zoom_in",
 ) -> any:
     """
     Standardizes any video or image into exact vertical 9:16 layout (1080x1920)
     cleanly without stretching, squishing, or distorting the source asset.
-
-    Modes:
-      - 'crop_cover' (Default for Reels): Scales proportionally until both dimensions
-        cover 1080x1920, then crops center. Eliminates distortion and fills full frame.
-      - 'blur_pad': Scales clip to fit inside frame, layered over a blurred, darkened
-        cover background. Ideal for horizontal clips where full context must be retained.
     """
     is_image = False
     clip = None
@@ -202,7 +226,13 @@ def normalize_clip_to_916(
             clip_dur = duration or 5.0
             if ken_burns:
                 try:
-                    clip = _apply_ken_burns_image(media_path, clip_dur, target_width, target_height)
+                    clip = _apply_ken_burns_image(
+                        media_path,
+                        clip_dur,
+                        target_width,
+                        target_height,
+                        motion_type=motion_type,
+                    )
                 except Exception as exc:
                     logger.debug("Ken burns transform failed (%s), falling back to static ImageClip", exc)
                     clip = ImageClip(str(media_path)).with_duration(clip_dur)
@@ -234,13 +264,11 @@ def normalize_clip_to_916(
         return clip.resized((target_width, target_height))
 
     if mode == "blur_pad":
-        # Foreground: scale to fit within target
         fg_scale = min(target_width / src_w, target_height / src_h)
         fg_w = int(round(src_w * fg_scale))
         fg_h = int(round(src_h * fg_scale))
         fg = clip.resized((fg_w, fg_h)).with_position(("center", "center"))
 
-        # Background: scale to cover, crop center, darken
         bg_scale = max(target_width / src_w, target_height / src_h)
         bg_scaled = clip.resized(bg_scale)
         bg = (
@@ -250,7 +278,7 @@ def normalize_clip_to_916(
                 width=target_width,
                 height=target_height,
             )
-            .with_effects([vfx.MultiplyColor(0.35)])  # Darken 65% for high foreground contrast
+            .with_effects([vfx.MultiplyColor(0.35)])
         )
         return CompositeVideoClip([bg, fg], size=(target_width, target_height))
 
@@ -274,27 +302,35 @@ def stitch_video_sequence(
     media_items: Sequence[Union[Path, str, any]],
     target_duration: float,
     max_clip_duration: float = 6.0,
+    clip_durations: Optional[List[float]] = None,
     transition_duration: float = 0.5,
     crossfade: bool = True,
     mode: str = "crop_cover",
 ) -> any:
     """
     Normalizes a sequence of video clips or images into 9:16 and stitches them
-    together with smooth crossfades, eliminating abrupt robotic jumps.
+    together with smooth crossfades and alternating directional camera motions.
     """
     if not media_items:
         raise ValueError("stitch_video_sequence called with empty media_items list.")
 
+    motion_cycle = ["zoom_in", "pan_right", "zoom_out", "tilt_up"]
     loaded_clips = []
-    for item in media_items:
+
+    for i, item in enumerate(media_items):
+        item_dur = clip_durations[i] if (clip_durations and i < len(clip_durations)) else max_clip_duration
+        # Add transition padding to ensure overlap doesn't shorten individual scene
+        padded_dur = item_dur + (transition_duration if crossfade and i > 0 else 0.0)
+        motion = motion_cycle[i % len(motion_cycle)]
+
         try:
             norm_clip = normalize_clip_to_916(
                 item,
-                duration=max_clip_duration,
+                duration=padded_dur,
                 mode=mode,
+                motion_type=motion,
             )
-            sub_dur = min(norm_clip.duration, max_clip_duration)
-            norm_clip = norm_clip.subclipped(0, sub_dur)
+            norm_clip = norm_clip.subclipped(0, padded_dur)
             loaded_clips.append(norm_clip)
         except Exception as exc:
             logger.warning("Failed to normalize media item '%s': %s", item, exc)
