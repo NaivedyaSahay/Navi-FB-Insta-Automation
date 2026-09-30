@@ -24,6 +24,8 @@ logger = logging.getLogger("config")
 # ── API Keys ──────────────────────────────────────────────────────────────────
 GROQ_API_KEY: str     = os.getenv("GROQ_API_KEY", "")
 GEMINI_API_KEY: str   = os.getenv("GEMINI_API_KEY", "")
+HF_TOKEN: str         = os.getenv("HF_TOKEN", "")
+HF_IMAGE_MODEL: str   = os.getenv("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
 PEXELS_API_KEY: str   = os.getenv("PEXELS_API_KEY", "")      # optional
 PIXABAY_API_KEY: str  = os.getenv("PIXABAY_API_KEY", "")     # optional
 
@@ -42,10 +44,23 @@ META_FB_PAGE_ID: str     = os.getenv("META_FB_PAGE_ID", "")      # Facebook Page
 GROQ_MODEL: str   = os.getenv("GROQ_MODEL", "groq/compound")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
-# ── TTS Voice Settings ────────────────────────────────────────────────────────
-TTS_VOICE: str  = os.getenv("TTS_VOICE", "en-US-ChristopherNeural")
-TTS_RATE: str   = os.getenv("TTS_RATE", "+0%")   # e.g. "+10%" to speed up
+# ── TTS Voice Provider Settings ───────────────────────────────────────────────
+TTS_PROVIDER: str   = os.getenv("TTS_PROVIDER", "auto")   # "sarvam", "edge-tts", or "auto" (uses sarvam if key set)
+SARVAM_API_KEY: str = os.getenv("SARVAM_API_KEY", "")
+SARVAM_SPEAKER: str = os.getenv("SARVAM_SPEAKER", "ratan")  # ratan, shubh, aditya, kavya, ritu
+SARVAM_MODEL: str   = os.getenv("SARVAM_MODEL", "bulbul:v3")
+
+# Edge-TTS Settings (Free Fallback - Swara Dramatic Expressive)
+TTS_VOICE: str  = os.getenv("TTS_VOICE", "hi-IN-SwaraNeural")
+TTS_RATE: str   = os.getenv("TTS_RATE", "+0%")
+TTS_PITCH: str  = os.getenv("TTS_PITCH", "+0Hz")
 TTS_VOLUME: str = os.getenv("TTS_VOLUME", "+0%")
+
+# ── Background Music (BGM) Settings ───────────────────────────────────────────
+BGM_DIR: Path       = Path(__file__).parent / "background_music"
+BGM_DIR.mkdir(parents=True, exist_ok=True)
+BGM_VOLUME: float   = float(os.getenv("BGM_VOLUME", "0.11"))
+ENABLE_BGM: bool    = os.getenv("ENABLE_BGM", "true").lower() in ("true", "1", "yes")
 
 # ── Video Settings (Reels 9:16 Format) ───────────────────────────────────────
 VIDEO_WIDTH: int  = int(os.getenv("VIDEO_WIDTH", "1080"))
@@ -53,7 +68,7 @@ VIDEO_HEIGHT: int = int(os.getenv("VIDEO_HEIGHT", "1920"))
 VIDEO_FPS: int    = int(os.getenv("VIDEO_FPS", "30"))
 VIDEO_CODEC: str  = os.getenv("VIDEO_CODEC", "libx264")
 AUDIO_CODEC: str  = os.getenv("AUDIO_CODEC", "aac")
-VIDEO_BITRATE: str = os.getenv("VIDEO_BITRATE", "4000k")
+VIDEO_BITRATE: str = os.getenv("VIDEO_BITRATE", "8M")
 BACKGROUND_COLOR: tuple = (18, 18, 30)   # dark fallback background
 
 # ── Output Paths ──────────────────────────────────────────────────────────────
@@ -69,28 +84,17 @@ BG_VIDEO_FILE: Path  = OUTPUT_DIR / "background.mp4"
 
 # ── Allowed & Blacklisted Topics ──────────────────────────────────────────────
 ALLOWED_CATEGORIES = [
-    "Artificial Intelligence",
-    "Programming",
-    "Technology",
-    "Psychology",
-    "Human Behaviour",
-    "Productivity",
-    "Science",
-    "Space",
-    "History",
-    "Economics",
-    "Finance",
-    "Geography",
-    "Nature",
-    "Health",
-    "Business",
-    "Entrepreneurship",
-    "Startups",
-    "Future Technologies",
-    "Internet Facts",
-    "Mystery",
-    "Interesting Facts",
-    "Life Lessons",
+    "Mahabharata",
+    "Ramayana",
+    "Lord Shiva",
+    "Bhagavad Gita",
+    "Lord Krishna",
+    "Karna & Dharma",
+    "Hanuman",
+    "Karma & Destiny",
+    "Puranic Legends",
+    "Vedic Wisdom",
+    "Spiritual Life Lessons",
 ]
 
 FORBIDDEN_TOPICS = [

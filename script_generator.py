@@ -36,40 +36,54 @@ logger = logging.getLogger("script_generator")
 
 # ── Model Priority List ───────────────────────────────────────────────────────
 GROQ_MODELS = [
-    config.GROQ_MODEL,          # primary (from .env, defaults to groq/compound)
-    "qwen/qwen3.6-27b",
+    "qwen/qwen3.8-27b",
+    config.GROQ_MODEL,          # primary from .env
     "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
 ]
 
 SYSTEM_PROMPT = """\
-You are an elite viral content creator for Facebook & Instagram Reels with proven 10M+ view videos
-in Science, AI, Psychology, Space, History, and Human Behaviour niches.
+You are a master viral storyteller for Instagram Reels and YouTube Shorts specializing in Hindu Mythology (सनातन धर्म, महाभारत, रामायण, पुराण और उपनिषद).
+Your storytelling is gripping, cinematic, deeply emotional, never boring, and provides timeless human life lessons.
 
-Your scripts are educational, deeply engaging, fast-paced, and designed for maximum scroll-stopping retention.
+LANGUAGE & SCRIPT RULES (CRITICAL — FOLLOW STRICTLY):
+1. Language: Speak in pure, powerful, spoken HINDI written in Devanagari script (हिंदी भाषा).
+2. DURATION: STRICTLY 40 TO 52 SECONDS (85 to 110 Hindi words). Never exceed 115 words so the video stays under 1 minute!
+3. NATURAL HUMAN SPEECH & CADENCE (CRITICAL TO SOUND LIKE A REAL HUMAN):
+   - Do NOT sound like an emotionless robotic reader. Write with intense passion, curiosity, and rhythm.
+   - Insert commas (,) for natural micro-breaths.
+   - Insert ellipses (...) for dramatic suspenseful pauses right before big revelations.
+   - Insert em-dashes (—) right before delivering the profound life lesson so the voice slows down thoughtfully.
+   - Example cadence: "क्या आप जानते हैं... महाभारत के सबसे बड़े दानी कर्ण का अंत, केवल एक बाण से नहीं हुआ था? उसके पीछे था—एक ऐसा रहस्य, जो आज भी हर इंसान की आंखें खोल देता है।"
 
-SCRIPT RULES (critical — follow exactly):
-1. Duration: Exactly 35-55 seconds spoken naturally (95-135 words). Must be educational and punchy.
-2. HOOK (first 15 words): One irresistible sentence that creates a CURIOSITY GAP or a SHOCKING FACT.
-   - "Scientists discovered your brain makes decisions 7 seconds before you're aware of it."
-   - "The Roman Empire fell for the exact same reason most businesses fail today."
-3. CORE (words 15-100): 3 fast, specific insight points. Short sentences. No filler. Every word earns its place.
-4. CLOSE (words 100-135): Memorable takeaway + strong CTA. e.g. "Like for more facts that rewire how you think."
-5. NO stage directions. NO [Music]. NO (pause). NO narrator tags. ONLY spoken words.
-6. Tone: Authoritative, warm, and genuinely fascinating — like a brilliant friend sharing a secret.
+4-PART STORYTELLING STRUCTURE:
+1. HOOK (0-5 seconds / First 10-15 words): Start with an intense, curious, dramatic question or revelation that stops viewers from scrolling.
+   Example: "क्या आप जानते हैं कि महाभारत के सबसे महान दानी कर्ण का वध केवल एक छल नहीं, बल्कि उसके अहंकार की कीमत थी?"
+2. GRIPPING STORY (5-35 seconds / ~50-60 words): Fast-paced, cinematic storytelling with drama, high stakes, and conflict. Focus on the pivotal moment that changes everything.
+3. HUMAN LIFE LESSON (35-48 seconds / ~20-25 words):
+   MUST explicitly state: "इस कहानी से हम इंसानों को सबसे बड़ी सीख यह मिलती है कि..." (Clear, profound lesson on Karma, ego, true righteousness/Dharma, inner strength, or loyalty).
+4. CLOSING CTA (48-52 seconds / ~8-10 words):
+   "सनातन धर्म के ऐसे ही गहरे ज्ञान और जीवन की सीख के लिए फॉलो ज़रूर करें।"
 
-You MUST respond with ONLY a valid JSON object matching this exact schema (no markdown, no extra text):
+STRICT CONSTRAINTS:
+- NO stage directions like [संगीत] or (विराम). Only spoken words.
+- All keywords MUST be in ENGLISH (4-6 terms) describing sacred atmosphere.
+- image_prompts MUST be in ENGLISH (4 to 5 prompts). Each must be a highly detailed, cinematic description of a 9:16 vertical digital painting showing the exact character, god, warrior, or temple mentioned in that moment (e.g. "Lord Shiva meditating in snow covered Himalayas, glowing third eye, crescent moon, cinematic 8k vertical art", "Karna on golden chariot donating divine armor, Kurukshetra battlefield, celestial light rays, vertical").
+- Respond with ONLY a valid JSON object matching this schema:
 {
-  "title": "<Short catchy title under 70 chars>",
-  "script": "<The full spoken text — 95 to 135 words. Count carefully.>",
-  "fb_reels_caption": "<Facebook Reels caption. Hook line + 2 bullet highlights + CTA. Under 300 chars.>",
-  "ig_reels_caption": "<Instagram Reels caption. Engaging + 5-8 specific hashtags. Under 300 chars.>",
-  "hashtags": ["#Reels", "#Facts", "#LearnOnReels", "<4-8 topic-specific tags>"],
-  "keywords": ["<4-6 SPECIFIC visual search terms for stock footage — not generic>"]
+  "title": "<Catchy Hindi title under 60 chars>",
+  "script": "<Spoken Hindi story in Devanagari — strictly 85 to 110 words. Count carefully.>",
+  "fb_reels_caption": "<Compelling Hindi caption with the moral lesson and emojis. Under 300 chars.>",
+  "ig_reels_caption": "<Engaging Hindi caption with 6-8 relevant hashtags. Under 300 chars.>",
+  "hashtags": ["#Mahabharata", "#SanatanDharma", "#HinduMythology", "#Krishna", "#Karma", "#LifeLessons", "#TrendingReels"],
+  "keywords": ["ancient indian temple", "sacred fire ritual", "himalayas meditation", "golden divine light"],
+  "image_prompts": [
+    "<Scene 1 (Opening Hook): Detailed 9:16 vertical cinematic description of the opening scene/god/warrior>",
+    "<Scene 2 (Story Conflict): Detailed 9:16 vertical cinematic description of the dramatic conflict>",
+    "<Scene 3 (Pivotal Climax): Detailed 9:16 vertical cinematic description of the divine revelation or turning point>",
+    "<Scene 4 (Moral / Wisdom): Detailed 9:16 vertical cinematic description of sacred wisdom, temple, or cosmic peace>"
+  ]
 }
-
-KEYWORDS RULES (critical for video quality):
-  BAD:  "science", "brain", "nature", "technology"
-  GOOD: "neurons firing brain scan", "roman forum ruins", "deep ocean bioluminescence", "quantum chip lab"
 """
 
 
@@ -145,38 +159,35 @@ def _call_gemini_api(prompt: str) -> Optional[Dict[str, Any]]:
 
 
 def _rich_template_fallback(topic: str) -> Dict[str, Any]:
-    """High-quality curated template used only when all APIs fail."""
-    logger.info("Using rich offline template for: %s", topic)
+    """High-quality curated Hindi mythology template used when APIs are unreachable."""
+    logger.info("Using rich offline Hindi mythology template for: %s", topic)
     return {
-        "title": f"Mind-Blowing Facts About {topic[:35]}",
+        "title": "कर्ण का पतन और सबसे बड़ी सीख",
         "script": (
-            f"Here is something about {topic} that will permanently change how you see the world. "
-            "For centuries, scientists assumed this was impossible. Then in the last decade, "
-            "three independent research teams proved the opposite. "
-            "The first discovery: the mechanism is far more ancient than we imagined. "
-            "The second: human intuition consistently predicted it before formal proof. "
-            "The third — and most shocking — it scales perfectly to explain things happening right now. "
-            "When you understand this, every headline starts making a different kind of sense. "
-            "Like and follow for facts that genuinely expand how you understand reality."
+            "क्या आप जानते हैं कि महाभारत के सबसे शक्तिशाली योद्धा कर्ण का वध केवल एक बाण से नहीं, "
+            "बल्कि उसके अतीत के कर्मों से हुआ था? जब कुरुक्षेत्र में कर्ण के रथ का पहिया भूमि में धंस गया, "
+            "तब उसने कृष्ण से धर्म की दुहाई दी। इस पर भगवान कृष्ण ने मुस्कुराते हुए पूछा—कर्ण, जब द्रौपदी का भरी सभा में "
+            "अपमान हो रहा था, तब तुम्हारा धर्म कहाँ था? इस कहानी से हम इंसानों को सबसे बड़ी सीख यह मिलती है कि "
+            "आप कितने भी गुणी और वीर क्यों न हों, यदि आप अधर्म और गलत लोगों का साथ देंगे, तो आपका विनाश निश्चित है। "
+            "सनातन धर्म की ऐसी ही अमर सीख के लिए हमें फॉलो ज़रूर करें।"
         ),
         "fb_reels_caption": (
-            f"🧠 {topic} facts that will expand your mind!\n"
-            "• Backed by research\n"
-            "• Explained simply\n"
-            "Like & follow for daily mind-expanding Reels. #Facts #LearnOnReels"
+            "🏹 महाभारत से जीवन की सबसे बड़ी सीख!\n"
+            "चाहे आप कितने भी शक्तिशाली हों, अधर्म का साथ हमेशा पतन की ओर ले जाता है।\n"
+            "सनातन ज्ञान के लिए फॉलो करें। #Mahabharata #Karma #LifeLessons"
         ),
         "ig_reels_caption": (
-            f"Mind-blowing breakdown of {topic} 🔬✨\n"
-            "Follow for daily educational Reels!\n"
-            "#Reels #Facts #LearnOnReels #Education #Science #Knowledge #Viral #MindBlown"
+            "कर्ण के जीवन से इंसान के लिए सबसे बड़ी सीख 🕉️✨\n"
+            "गलत संगति और अधर्म का परिणाम हमेशा विनाशकारी होता है।\n"
+            "#Mahabharata #SanatanDharma #Krishna #Karma #HinduMythology #LifeLessons #ReelsIndia"
         ),
         "hashtags": [
-            "#Reels", "#Facts", "#LearnOnReels", "#Education",
-            "#Science", "#Knowledge", "#Viral", "#MindBlown", "#Interesting",
+            "#Mahabharata", "#SanatanDharma", "#HinduMythology", "#Krishna",
+            "#Karma", "#LifeLessons", "#TrendingReels", "#Bhakti",
         ],
         "keywords": [
-            "science laboratory close-up", "researcher microscope",
-            "knowledge education concept", "human brain neurons"
+            "ancient indian temple", "sacred fire ritual", "himalayas meditation",
+            "cosmic galaxy universe", "golden divine light"
         ],
     }
 
@@ -203,16 +214,28 @@ def generate_script(topic: str) -> Dict[str, Any]:
     script_text = re.sub(r"\s+", " ", script_text).strip()
     data["script"] = script_text
 
-    # ── Enforce limits ────────────────────────────────────────────────────────
+    # ── Enforce strict limits (Under 1 minute / 85-110 words) ─────────────────
     words = data["script"].split()
-    if len(words) > 140:
-        data["script"] = " ".join(words[:140])
+    if len(words) > 115:
+        truncated = " ".join(words[:115])
+        # Find last full sentence punctuation (।, ., ?, !) to avoid cut-off words
+        match = re.search(r"^(.*[।\.\?!])", truncated, flags=re.DOTALL)
+        if match and len(match.group(1).split()) >= 70:
+            data["script"] = match.group(1).strip()
+        else:
+            data["script"] = truncated
 
-    data["title"] = data.get("title", topic)[:70]
+    data["title"] = data.get("title", topic)[:60]
     data["fb_reels_caption"] = data.get("fb_reels_caption", "")[:300]
     data["ig_reels_caption"] = data.get("ig_reels_caption", "")[:300]
-    data["hashtags"] = data.get("hashtags", ["#Reels", "#Facts"])[:12]
-    data.setdefault("keywords", ["science laboratory", "knowledge concept"])
+    data["hashtags"] = data.get("hashtags", ["#SanatanDharma", "#LifeLessons"])[:10]
+    data.setdefault("keywords", ["ancient indian temple", "sacred fire ritual", "himalayas meditation"])
+    data.setdefault("image_prompts", [
+        f"{topic} ancient Indian mythology, cinematic lighting, 8k vertical art",
+        "sacred fire ritual in ancient temple, golden divine light rays, spiritual atmosphere, 8k vertical",
+        "epic mythological revelation, celestial clouds, sacred aura, cinematic 9:16 vertical art",
+        "ancient sacred temple in Himalayas under starry night sky, burning brass diyas, spiritual wisdom, vertical"
+    ])
 
     logger.info(
         "Script ready (%d words). Title: '%s'",

@@ -31,8 +31,10 @@ wheels/
 # Media Output & Dynamic Downloads
 output/
 satisfying_clips/
+audio_samples/
 *.mp4
 *.mp3
+!background_music/*.mp3
 *.wav
 
 # IDE & OS files

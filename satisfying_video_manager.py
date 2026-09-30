@@ -35,6 +35,7 @@ from moviepy import (
 from PIL import Image, ImageDraw
 
 import config
+import video_engine
 
 logger = logging.getLogger("visual_manager")
 
@@ -56,8 +57,65 @@ def _download_clip(url: str, dest: Path, headers: dict = None) -> bool:
         return False
 
 
+def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> List[Path]:
+    """
+    Generates high-definition 9:16 AI mythological scenes using Hugging Face (FLUX.1-schnell)
+    or Pollinations fallback for 100% free cinematic art.
+    """
+    saved: List[Path] = []
+    prompts = [p.strip() for p in image_prompts if p.strip()][:count]
+    if not prompts:
+        return []
+
+    # 1. Try Hugging Face Inference API if HF_TOKEN is provided
+    if config.HF_TOKEN:
+        try:
+            from huggingface_hub import InferenceClient
+            client = InferenceClient(token=config.HF_TOKEN)
+            logger.info("Generating %d AI mythological scenes via Hugging Face (%s)...",
+                        len(prompts), config.HF_IMAGE_MODEL)
+            for i, p in enumerate(prompts):
+                dest = config.OUTPUT_DIR / f"ai_scene_{i}.jpg"
+                try:
+                    logger.info("Generating AI Scene #%d: '%s'...", i + 1, p[:60] + "...")
+                    img = client.text_to_image(
+                        prompt=p + ", cinematic 8k vertical mythological wallpaper, masterpiece, divine lighting",
+                        model=config.HF_IMAGE_MODEL,
+                        width=768,
+                        height=1344,
+                    )
+                    img.save(str(dest))
+                    if dest.exists() and dest.stat().st_size > 5000:
+                        saved.append(dest)
+                except Exception as exc:
+                    logger.warning("HF Scene #%d error: %s", i + 1, exc)
+            if saved:
+                logger.info("Successfully generated %d scenes via Hugging Face.", len(saved))
+                return saved
+        except Exception as hf_err:
+            logger.warning("Hugging Face client initialization failed: %s", hf_err)
+
+    # 2. Free Pollinations endpoint fallback
+    import urllib.parse
+    logger.info("Attempting free AI scene generation via Pollinations...")
+    for i, p in enumerate(prompts):
+        dest = config.OUTPUT_DIR / f"ai_scene_{i}.jpg"
+        try:
+            enc = urllib.parse.quote(p)
+            url = f"https://image.pollinations.ai/prompt/{enc}?width=768&height=1344&nologo=true"
+            resp = requests.get(url, timeout=30)
+            if resp.status_code == 200 and len(resp.content) > 5000:
+                dest.write_bytes(resp.content)
+                saved.append(dest)
+        except Exception as exc:
+            logger.debug("Pollinations scene error: %s", exc)
+
+    logger.info("Retrieved %d AI mythological scenes.", len(saved))
+    return saved
+
+
 def _fetch_pexels_relevant_clips(keywords: List[str], count: int = 5) -> List[Path]:
-    """Fetch topic-relevant portrait video clips from Pexels."""
+    """Fetch topic-relevant portrait video clips from Pexels in Full HD (1080p)."""
     if not config.PEXELS_API_KEY:
         return []
 
@@ -67,7 +125,7 @@ def _fetch_pexels_relevant_clips(keywords: List[str], count: int = 5) -> List[Pa
     # Prepare search queries from script keywords
     queries = [kw.strip() for kw in keywords if kw.strip()]
     if not queries:
-        queries = ["technology", "space", "nature", "science"]
+        queries = ["ancient temple", "sacred fire", "himalayas", "meditation", "golden divine light"]
 
     # Deduplicate queries while preserving order
     queries = list(dict.fromkeys(queries))
@@ -80,7 +138,7 @@ def _fetch_pexels_relevant_clips(keywords: List[str], count: int = 5) -> List[Pa
             resp = requests.get(
                 "https://api.pexels.com/videos/search",
                 headers=headers,
-                params={"query": q, "orientation": "portrait", "size": "medium", "per_page": 5},
+                params={"query": q, "orientation": "portrait", "size": "large", "per_page": 5},
                 timeout=12,
             )
             if resp.status_code != 200:
@@ -90,9 +148,20 @@ def _fetch_pexels_relevant_clips(keywords: List[str], count: int = 5) -> List[Pa
                 files = vid.get("video_files", [])
                 portrait = [f for f in files if f.get("height", 0) >= f.get("width", 1)] or files
                 if portrait:
-                    url = portrait[0]["link"]
+                    # Sort descending to pick Full HD (1080p) instead of 360p
+                    portrait.sort(key=lambda f: f.get("width", 0) * f.get("height", 0), reverse=True)
+                    best_file = None
+                    for f in portrait:
+                        if f.get("width") == 1080 or f.get("height") == 1920:
+                            best_file = f
+                            break
+                    if not best_file:
+                        candidates = [f for f in portrait if f.get("width", 0) <= 1080 and f.get("height", 0) <= 1920]
+                        best_file = candidates[0] if candidates else portrait[0]
+
+                    url = best_file["link"]
                     dest = config.OUTPUT_DIR / f"rel_pexels_{i}_{len(saved)}.mp4"
-                    logger.info("Downloading Pexels clip #%d ['%s']: %s", len(saved) + 1, q, url)
+                    logger.info("Downloading Pexels Full HD clip #%d ['%s']: %s", len(saved) + 1, q, url)
                     if _download_clip(url, dest, headers):
                         saved.append(dest)
                         break
@@ -111,7 +180,7 @@ def _fetch_pixabay_relevant_clips(keywords: List[str], count: int = 4) -> List[P
     saved: List[Path] = []
     queries = [kw.strip() for kw in keywords if kw.strip()]
     if not queries:
-        queries = ["nature", "technology", "abstract", "science"]
+        queries = ["ancient temple", "sacred fire", "himalayas", "meditation"]
 
     queries = list(dict.fromkeys(queries))
 
@@ -148,12 +217,11 @@ def _fetch_pixabay_relevant_clips(keywords: List[str], count: int = 4) -> List[P
 
 
 def _get_local_clips() -> List[Path]:
-    """Check satisfying_clips/ folder for local MP4/MOV files."""
+    """Check satisfying_clips/ folder for local media files."""
     clips_dir = config.LOCAL_SATISFYING_CLIPS_DIR
     if not clips_dir.exists():
         return []
-    valid_exts = {".mp4", ".mov", ".mkv", ".webm"}
-    return [f for f in clips_dir.iterdir() if f.is_file() and f.suffix.lower() in valid_exts]
+    return video_engine.scan_and_sort_media(clips_dir, recursive=False, sort_by="natural")
 
 
 def _generate_fallback_gradient_background(duration: float):
@@ -191,60 +259,60 @@ def _generate_fallback_gradient_background(duration: float):
     return combined.subclipped(0, duration)
 
 
-def get_video_background(target_duration: float, keywords: List[str] = None):
+def get_video_background(
+    target_duration: float,
+    keywords: List[str] = None,
+    image_prompts: List[str] = None,
+):
     """
-    Fetch and stitch topic-relevant video clips matching script keywords.
+    Fetch and stitch topic-relevant visuals for background:
+    1. Primary: 100% Free AI-Generated Mythological Scenes matching the story with Ken Burns 3D motion!
+    2. Fallback 1: Local clips in satisfying_clips/
+    3. Fallback 2: Pexels Full HD atmospheric clips
+    4. Fallback 3: Animated dark sacred gradient
     """
-    kw = keywords or ["technology", "space", "nature", "science"]
-    logger.info("Preparing topic-relevant visual background for keywords: %s (Duration: %.2fs)...",
-                kw, target_duration)
     clip_paths: List[Path] = []
 
-    # 1. Search Pexels for script keywords
-    p_clips = _fetch_pexels_relevant_clips(kw, count=5)
-    clip_paths.extend(p_clips)
+    # 1. Primary: Generate scene-matched AI mythological art if prompts provided
+    if image_prompts:
+        ai_scenes = _fetch_ai_mythological_scenes(image_prompts, count=5)
+        if ai_scenes:
+            logger.info("Using %d AI-generated mythological scenes for background.", len(ai_scenes))
+            clip_paths.extend(ai_scenes)
 
-    # 2. Search Pixabay for script keywords if more clips needed
-    if len(clip_paths) < 4:
-        px_clips = _fetch_pixabay_relevant_clips(kw, count=4)
-        clip_paths.extend(px_clips)
-
-    # 3. Check local clips folder if stock API returned nothing
+    # 2. Check local clips folder if AI generation failed or wasn't requested
     if not clip_paths:
         local_clips = _get_local_clips()
         if local_clips:
             logger.info("Found %d local clips in satisfying_clips/ folder.", len(local_clips))
             clip_paths.extend(local_clips)
 
+    # 3. Fallback to Pexels / Pixabay
     if not clip_paths:
-        logger.warning("No video clips retrieved for keywords. Using animated fallback background.")
+        kw = keywords or ["ancient temple", "sacred fire", "himalayas", "meditation"]
+        p_clips = _fetch_pexels_relevant_clips(kw, count=5)
+        clip_paths.extend(p_clips)
+        if len(clip_paths) < 4:
+            px_clips = _fetch_pixabay_relevant_clips(kw, count=4)
+            clip_paths.extend(px_clips)
+
+    if not clip_paths:
+        logger.warning("No visual assets retrieved. Using animated fallback background.")
         return _generate_fallback_gradient_background(target_duration)
 
-    # Process and stitch clips together
-    loaded_clips = []
-    max_single_clip_dur = 6.0  # switch clip every 6 seconds for fast-paced Reels retention
-
-    for p in clip_paths:
-        try:
-            clip = VideoFileClip(str(p), audio=False).resized((W, H)).with_fps(FPS)
-            sub_dur = min(clip.duration, max_single_clip_dur)
-            clip = clip.subclipped(0, sub_dur)
-            loaded_clips.append(clip)
-        except Exception as exc:
-            logger.warning("Could not load video clip '%s': %s", p, exc)
-
-    if not loaded_clips:
+    # Process and stitch clips together with intelligent 9:16 normalization & smooth transitions
+    try:
+        return video_engine.stitch_video_sequence(
+            media_items=clip_paths,
+            target_duration=target_duration,
+            max_clip_duration=8.0,
+            transition_duration=0.5,
+            crossfade=True,
+            mode="crop_cover",
+        )
+    except Exception as exc:
+        logger.warning("Failed to stitch clips via video engine (%s). Using fallback background.", exc)
         return _generate_fallback_gradient_background(target_duration)
-
-    logger.info("Stitching %d topic-relevant video clips together...", len(loaded_clips))
-    combined = concatenate_videoclips(loaded_clips)
-
-    # Loop sequence if total duration is shorter than target_duration
-    if combined.duration < target_duration:
-        loops = int(np.ceil(target_duration / combined.duration))
-        combined = concatenate_videoclips([combined] * loops)
-
-    return combined.subclipped(0, target_duration)
 
 
 # Alias for backward compatibility

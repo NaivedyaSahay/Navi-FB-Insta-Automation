@@ -88,7 +88,8 @@ def run_pipeline(
     script_text = script_data.get("script", "")
     fb_caption = script_data.get("fb_reels_caption", "")
     ig_caption = script_data.get("ig_reels_caption", "")
-    keywords = script_data.get("keywords", ["satisfying", "kinetic sand"])
+    keywords = script_data.get("keywords", ["ancient indian temple", "sacred fire ritual"])
+    image_prompts = script_data.get("image_prompts", [])
 
     logger.info("📜 Script Title: '%s'", title)
     logger.info("📝 Script Preview: '%s...'", script_text[:80])
@@ -105,12 +106,13 @@ def run_pipeline(
         voice=voice or config.TTS_VOICE,
     )
 
-    # 5. Composite satisfying video background + voiceover + dynamic captions
+    # 5. Composite AI mythological scenes/video background + voiceover + dynamic captions
     final_video = compose_video(
         audio_path=audio_file,
         word_timings=word_timings,
         script_text=script_text,
         keywords=keywords,
+        image_prompts=image_prompts,
         output_path=video_path,
     )
 

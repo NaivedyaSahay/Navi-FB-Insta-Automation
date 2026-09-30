@@ -20,12 +20,15 @@ from typing import List, Dict, Any
 import numpy as np
 from moviepy import (
     AudioFileClip,
+    CompositeAudioClip,
+    concatenate_audioclips,
     ImageClip,
     CompositeVideoClip,
 )
 from PIL import Image, ImageDraw, ImageFont
 
 import config
+import video_engine
 from satisfying_video_manager import get_satisfying_background
 
 logger = logging.getLogger("video_composer")
@@ -34,17 +37,24 @@ W, H = config.VIDEO_WIDTH, config.VIDEO_HEIGHT  # 1080 x 1920
 FPS  = config.VIDEO_FPS
 
 def _get_font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
-    """Find available Impact or Arial system font."""
+    """Find available Devanagari/Hindi compatible font (Nirmala, Arial, Mangal)."""
     candidates = [
-        "C:/Windows/Fonts/impact.ttf",
-        "C:/Windows/Fonts/ariblk.ttf",
-        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        ("C:/Windows/Fonts/Nirmala.ttc", 1 if bold else 0),
+        ("C:/Windows/Fonts/nirmalab.ttf", 0),
+        ("C:/Windows/Fonts/nirmala.ttf", 0),
+        ("C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf", 0),
+        ("C:/Windows/Fonts/ariblk.ttf", 0),
+        ("C:/Windows/Fonts/impact.ttf", 0),
+        ("/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf", 0),
+        ("/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf", 0),
+        ("/usr/share/fonts/truetype/fonts-deva-extra/gargi.ttf", 0),
+        ("/usr/share/fonts/truetype/lohit-devanagari/Lohit-Devanagari.ttf", 0),
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 0),
     ]
-    for p in candidates:
+    for item in candidates:
+        p, idx = item if isinstance(item, tuple) else (item, 0)
         try:
-            return ImageFont.truetype(p, size)
+            return ImageFont.truetype(p, size, index=idx)
         except Exception:
             continue
     return ImageFont.load_default()
@@ -65,19 +75,46 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> List[
     return lines
 
 def _group_words_into_caption_chunks(
-    word_timings: List[Dict[str, Any]], words_per_chunk: int = 4
+    word_timings: List[Dict[str, Any]], words_per_chunk: int = 3
 ) -> List[Dict[str, Any]]:
-    """Group individual word timestamps into short 3-4 word caption phrases."""
+    """
+    Group individual word timestamps into short, punchy 2-3 word caption phrases
+    synchronized with natural speech cadence and punctuation.
+    """
     if not word_timings:
         return []
+
     chunks = []
-    for i in range(0, len(word_timings), words_per_chunk):
-        group = word_timings[i : i + words_per_chunk]
+    current_words = []
+
+    for item in word_timings:
+        current_words.append(item)
+        w = str(item.get("word", "")).strip()
+
+        # Break on natural punctuation or reaching target chunk size
+        is_break_punct = bool(w and w[-1] in (".", "?", "!", ",", ";", ":", "-"))
+        if len(current_words) >= words_per_chunk or is_break_punct:
+            chunks.append({
+                "text": " ".join(x["word"] for x in current_words),
+                "start": current_words[0]["start"],
+                "end": current_words[-1]["end"],
+            })
+            current_words = []
+
+    if current_words:
         chunks.append({
-            "text": " ".join(w["word"] for w in group),
-            "start": group[0]["start"],
-            "end": group[-1]["end"],
+            "text": " ".join(x["word"] for x in current_words),
+            "start": current_words[0]["start"],
+            "end": current_words[-1]["end"],
         })
+
+    # Smooth bridge: extend caption display through short speech gaps to prevent flickering
+    for i in range(len(chunks) - 1):
+        next_start = chunks[i + 1]["start"]
+        cur_end = chunks[i]["end"]
+        if next_start > cur_end:
+            chunks[i]["end"] = min(next_start, cur_end + 0.35)
+
     return chunks
 
 def _render_viral_caption_rgba(text: str) -> np.ndarray:
@@ -121,11 +158,46 @@ def _render_viral_caption_rgba(text: str) -> np.ndarray:
 
     return np.array(img)
 
+def _prepare_bgm_clip(target_duration: float) -> AudioFileClip | None:
+    """
+    Loads and loops ambient background music to target_duration,
+    scaling volume down so the voiceover stays crisp, punchy, and prominent.
+    """
+    if not config.ENABLE_BGM or not config.BGM_DIR.exists():
+        return None
+
+    bgm_files = [
+        f for f in config.BGM_DIR.iterdir()
+        if f.suffix.lower() in (".mp3", ".wav", ".aac", ".m4a") and f.stat().st_size > 0
+    ]
+    if not bgm_files:
+        return None
+
+    import random
+    bgm_path = random.choice(bgm_files)
+    try:
+        raw_bgm = AudioFileClip(str(bgm_path))
+        clips = [raw_bgm]
+        cur_dur = raw_bgm.duration
+        while cur_dur < target_duration:
+            clips.append(raw_bgm)
+            cur_dur += raw_bgm.duration
+
+        chained = concatenate_audioclips(clips) if len(clips) > 1 else raw_bgm
+        scaled_bgm = chained.subclipped(0, target_duration).with_volume_scaled(config.BGM_VOLUME)
+        logger.info("Attached background music '%s' at %.0f%% volume.", bgm_path.name, config.BGM_VOLUME * 100)
+        return scaled_bgm
+    except Exception as exc:
+        logger.warning("Could not mix background music (%s). Continuing with voiceover only.", exc)
+        return None
+
+
 def compose_video(
     audio_path: Path,
     word_timings: List[Dict[str, Any]] = None,
     script_text: str = "",
     keywords: List[str] = None,
+    image_prompts: List[str] = None,
     output_path: Path | None = None,
 ) -> Path:
     """
@@ -138,15 +210,22 @@ def compose_video(
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
     # Load audio
-    audio_clip = AudioFileClip(str(audio_path))
-    duration = audio_clip.duration
+    voice_clip = AudioFileClip(str(audio_path))
+    duration = voice_clip.duration
     logger.info("Audio duration: %.2f seconds", duration)
 
-    # 1. Fetch stitched satisfying video background
-    bg_clip = get_satisfying_background(target_duration=duration, keywords=keywords)
+    # Prepare background music and layer with voiceover
+    bgm_clip = _prepare_bgm_clip(duration)
+    if bgm_clip:
+        final_audio = CompositeAudioClip([voice_clip, bgm_clip])
+    else:
+        final_audio = voice_clip
+
+    # 1. Fetch stitched visual background (AI mythological scenes or video clips)
+    bg_clip = get_satisfying_background(target_duration=duration, keywords=keywords, image_prompts=image_prompts)
 
     # 2. Build caption overlay clips
-    caption_chunks = _group_words_into_caption_chunks(word_timings or [], words_per_chunk=4)
+    caption_chunks = _group_words_into_caption_chunks(word_timings or [], words_per_chunk=3)
     if not caption_chunks:
         caption_chunks = [{"text": script_text[:60], "start": 0.0, "end": duration}]
 
@@ -171,43 +250,30 @@ def compose_video(
     # 3. Composite background + captions + audio
     logger.info("Compositing satisfying video background with %d caption chunks...", len(caption_clips))
     composite = CompositeVideoClip([bg_clip] + caption_clips, size=(W, H))
-    final_video = composite.subclipped(0, duration).with_audio(audio_clip)
+    final_video = composite.subclipped(0, duration).with_audio(final_audio)
 
-    # 4. Render & write final MP4 video file
-    logger.info("Exporting Reels video -> %s [%dx%d @ %dfps]...", output_path, W, H, FPS)
+    # 4. Render & write final MP4 video file via high-definition video engine
     try:
-        final_video.write_videofile(
-            str(output_path),
+        video_engine.export_video_hd(
+            clip=final_video,
+            output_path=output_path,
             fps=FPS,
             codec=config.VIDEO_CODEC,
             audio_codec=config.AUDIO_CODEC,
             bitrate=config.VIDEO_BITRATE,
-            audio_bitrate="128k",
+            audio_bitrate="192k",
             threads=4,
             preset="fast",
-            logger="bar",
-            ffmpeg_params=[
-                "-pix_fmt", "yuv420p",       # Instagram requires yuv420p
-                "-profile:v", "baseline",    # H.264 baseline profile for compatibility
-                "-level", "3.1",             # H.264 level 3.1
-                "-movflags", "+faststart",   # Move moov atom for streaming
-                "-ar", "44100",              # Audio sample rate 44.1kHz
-            ],
         )
-    except Exception as exc:
-        raise RuntimeError(f"Video export failed: {exc}") from exc
     finally:
         try:
-            audio_clip.close()
+            voice_clip.close()
+            if bgm_clip:
+                bgm_clip.close()
+            final_audio.close()
             final_video.close()
         except Exception:
             pass
-
-    if not output_path.exists() or output_path.stat().st_size == 0:
-        raise RuntimeError(f"Exported video missing or 0 bytes: {output_path}")
-
-    logger.info("Final Reels video successfully created: %s (%.1f MB)",
-                output_path, output_path.stat().st_size / (1024 * 1024))
 
     return output_path
 

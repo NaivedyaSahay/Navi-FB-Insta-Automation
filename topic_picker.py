@@ -29,9 +29,9 @@ import config
 
 logger = logging.getLogger("topic_picker")
 
-# ── Blacklist Keywords & Terms ────────────────────────────────────────────────
+# ── Blacklist Keywords & Terms (Focusing on toxic politics, crime, nsfw) ──────
 FORBIDDEN_KEYWORDS = [
-    # Politics & Elections
+    # Partisan Politics & Elections
     "bjp", "congress", "aap", "tmc", "dmk", "admk", "modi", "gandhi", "kejriwal",
     "trump", "biden", "kamala", "election", "elections", "vote", "voter", "voting",
     "poll", "polls", "campaign", "party", "government", "govt", "parliament",
@@ -43,9 +43,7 @@ FORBIDDEN_KEYWORDS = [
     # Crime & Violence
     "murder", "killed", "shooting", "arrested", "stolen", "robbery", "thief",
     "assault", "kidnapped", "victim", "suspect", "police", "jail", "prison",
-    # Religion
-    "god", "religion", "religious", "church", "temple", "mosque", "bible", "quran",
-    "gospel", "hindu", "muslim", "christian", "islam", "buddhist", "jewish", "atheist",
+    "hate speech", "riots", "communal riot",
     # Misinformation / Dangerous / Clickbait
     "cure for cancer", "secret conspiracy", "flat earth", "get rich overnight",
     "illuminati", "fake news", "miracle cure", "hacker password",
@@ -54,142 +52,71 @@ FORBIDDEN_KEYWORDS = [
 FORBIDDEN_PATTERNS = [
     r"\bvs\.?\b",                             # "team A vs team B"
     r"^\d+\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)",
-    r"\b(ebony|black|white)\b.{0,15}\b(edition|color)\b",
 ]
 
-# ── Curated Topic Bank (Covering all 23 approved categories) ─────────────────
+# ── Curated Hindu Mythology Story Bank (Fast-paced, inspiring, with life lessons) ──
 CURATED_CATEGORY_TOPICS = {
-    "Artificial Intelligence": [
-        "Mind-blowing artificial intelligence advancements that sound like sci-fi",
-        "How neural networks actually process information like the human brain",
-        "Why autonomous AI agents are transforming how software is built",
-        "The surprising history of how AI evolved from 1950 to today",
+    "Mahabharata": [
+        "The curse of Karna: Why true righteousness (Dharma) must outweigh personal loyalty",
+        "When Yudhishthira entered heaven with a faithful dog: The ultimate test of loyalty",
+        "Why Lord Krishna chose to be an unarmed charioteer: The power of divine guidance over weapons",
+        "Abhimanyu in the Chakravyuha: Supreme courage against impossible odds and the cost of half-knowledge",
+        "The Yaksha Prashna: The 5 deepest life questions answered by Yudhishthira",
     ],
-    "Programming": [
-        "Why Python became the most popular programming language in the world",
-        "The hidden story of how Linux powers 90% of the world's servers",
-        "How clean code principles save tech companies millions of dollars",
-        "What actually happens inside your computer when you compile code",
+    "Ramayana": [
+        "The secret conversation between Lakshmana and dying Ravana: The 3 golden life lessons",
+        "Why Lord Rama tested Sugriva's trust: The true foundation of lasting friendship",
+        "Jatayu's sacrifice: Fighting for justice even when you know you will lose",
+        "Kumbhakarna's tragic dilemma: Knowing your brother is wrong yet fulfilling loyalty",
+        "The little squirrel helping build Ram Setu: No honest effort is ever too small",
     ],
-    "Technology": [
-        "How fiber optic cables transmit internet data across oceans at light speed",
-        "How microchips are manufactured at the sub-nanometer atomic scale",
-        "The fascinating engineering behind modern smartphone cameras",
-        "Why battery technology is the biggest bottleneck in modern tech",
+    "Lord Shiva": [
+        "Why Lord Shiva drank the Halahala poison: The art of absorbing negativity without spreading it",
+        "Lord Shiva burning Kamadeva to ashes: How to conquer destructive desires and illusions",
+        "The mystery of Neelkantha: Why true strength is holding space for others' suffering",
+        "When Lord Shiva danced the Tandava: Destruction is just a doorway to necessary rebirth",
     ],
-    "Psychology": [
-        "Powerful psychological phenomena that explain human behavior",
-        "The Baader-Meinhof Phenomenon: Why you suddenly see things everywhere",
-        "Why your brain creates fake memories without you ever noticing",
-        "The Spotlight Effect: Why people pay far less attention to you than you think",
+    "Bhagavad Gita": [
+        "Arjuna's breakdown in Kurukshetra: How Lord Krishna teaches detachment from fear and doubt",
+        "The law of Nishkama Karma: Why working without obsession over results brings ultimate peace",
+        "Controlling the mind like a wild wind: Krishna's practical wisdom to master inner chaos",
+        "Who is a Sthitaprajna: The ancient secret to remaining calm in extreme pain or pleasure",
     ],
-    "Human Behaviour": [
-        "Why humans copy each other's body language without realizing it",
-        "The fascinating science behind why we yawn when seeing someone else yawn",
-        "How micro-expressions reveal hidden emotions in less than a second",
-        "Why social proof unconsciously influences almost every decision you make",
+    "Lord Krishna": [
+        "Sudama's handful of beaten rice: Why purity of heart matters infinite times more than wealth",
+        "Krishna uplifting the Govardhan Hill: Collective unity and breaking blind superstition",
+        "Why Krishna smiled when Gandhari cursed his entire dynasty: Accepting the consequences of fate",
+        "The stolen butter (Makhan Chor): The deeper spiritual metaphor of pure love and innocence",
     ],
-    "Productivity": [
-        "The 2-Minute Rule that eliminates procrastination instantly",
-        "How the Eisenhower Matrix helps top CEOs prioritize high-value work",
-        "Why multitasking actually lowers your IQ and focus by 40%",
-        "The science of deep work: How to achieve flow state in 15 minutes",
+    "Karna & Dharma": [
+        "Karna donating his golden armor to Indra: The danger of ego inside noble charity",
+        "The tragedy of Karna: How bad company corrupts even the greatest warrior of all time",
+        "When Kunti revealed the truth to Karna: Facing your destiny with unyielding honor",
     ],
-    "Science": [
-        "Why liquid nitrogen instantly freezes objects and shatters them like glass",
-        "The strange physics of non-Newtonian fluids that defy gravity",
-        "How bioluminescent organisms generate light without producing heat",
-        "The incredible science of quantum entanglement explained simply",
+    "Hanuman": [
+        "When Hanuman tore open his chest: True devotion leaves no room for self-doubt or ego",
+        "Hanuman forgetting his powers until reminded: How humans need courage from genuine mentors",
+        "Why Hanuman refused a pearl necklace from Sita: What holds value if it lacks divine purpose",
     ],
-    "Space": [
-        "What happens if an astronaut steps out of a spaceship without a spacesuit",
-        "Mind-blowing facts about neutron stars where one teaspoon weighs billions of tons",
-        "Why space is completely silent and freezing cold",
-        "The terrifying concept of rogue planets drifting alone in deep space",
+    "Karma & Destiny": [
+        "The wheel of Karma in Vedic scriptures: Why every choice echoes back into your life",
+        "King Harishchandra at the cremation ground: Remaining truthful when the world tests your core",
+        "The story of King Yayati: Why chasing endless physical pleasure only increases hunger",
     ],
-    "History": [
-        "Ancient historical secrets and engineering marvels science still cannot explain",
-        "How the Library of Alexandria changed human knowledge forever",
-        "Fascinating historical coincidences that sound completely fake",
-        "The unexpected origin of common everyday inventions",
+    "Puranic Legends": [
+        "Samudra Manthan (Churning of the Cosmic Ocean): First comes poison, only then comes nectar",
+        "Bhakt Prahlad and Lord Narasimha: Unshakable faith in the face of absolute tyranny",
+        "Ganesha circling his parents: Why your family is the entire universe",
     ],
-    "Economics": [
-        "Why hyperinflation caused people to burn money for warmth in 1923",
-        "How central banks control the global flow of currency and interest rates",
-        "The Broken Window Fallacy: Why destruction never creates real economic wealth",
-        "How supply demand dynamics quietly shape market prices every day",
+    "Vedic Wisdom": [
+        "The tale of Nachiketa and Yama: The secret of life, death, and conquering mortal fear",
+        "Satyakama Jabala: The Upanishadic story of why truth defines character, not birth or caste",
+        "The two birds on a single tree: The Upanishad parable of the soul and the observer",
     ],
-    "Finance": [
-        "The mathematical magic of compound interest: How small savings become millions",
-        "The difference between assets and liabilities explained in 30 seconds",
-        "How index funds beat 90% of professional stock market investors",
-        "Why emergency funds are the single most important financial safety net",
-    ],
-    "Geography": [
-        "Why 90% of Australia's population lives along its coastline",
-        "The strange border anomalies around the world created by history",
-        "Why the Pacific Ocean and Atlantic Ocean don't easily mix",
-        "Fascinating geography facts that completely change your perspective of Earth",
-    ],
-    "Nature": [
-        "How trees secretly communicate and share nutrients through underground fungi networks",
-        "The incredible navigation system birds use to migrate thousands of miles",
-        "Why honey never spoils: 3000-year-old honey found in Egyptian tombs is still edible",
-        "The unbelievable camouflage skills of octopuses in the deep ocean",
-    ],
-    "Health": [
-        "What happens to your brain and body when you drink enough water every day",
-        "The biological reason why sleep deprivation lowers immune function",
-        "How walking 10 minutes after meals drastically improves blood sugar regulation",
-        "Why circadian rhythms dictate your energy levels throughout the day",
-    ],
-    "Business": [
-        "How Netflix disrupted Blockbuster by changing business model innovation",
-        "The razor and blade business model: How companies profit from refills",
-        "Why network effects make tech monopolies almost impossible to break",
-        "The power of brand equity: Why people pay 10x more for branded items",
-    ],
-    "Entrepreneurship": [
-        "The lean startup methodology: How to test business ideas with zero budget",
-        "Why 90% of startups fail and the 1 lesson successful founders learned",
-        "How bootstrap founders build million-dollar businesses without investors",
-        "The secret to finding high-demand problems before building a product",
-    ],
-    "Startups": [
-        "How Airbnb survived its early days by selling custom cereal boxes",
-        "What Minimum Viable Product (MVP) actually means for tech startups",
-        "Why timing is the single biggest factor in startup success",
-        "How pivot strategies saved companies like Slack and Instagram",
-    ],
-    "Future Technologies": [
-        "How solid-state batteries will revolutionize electric vehicles and gadgets",
-        "What vertical farming means for the future of global food production",
-        "How brain-computer interfaces could allow humans to control devices with thought",
-        "The incredible promise of nuclear fusion energy",
-    ],
-    "Internet Facts": [
-        "How undersea internet cables transport 99% of global data traffic",
-        "What happens in 1 minute on the internet across the globe",
-        "The history of the very first website ever created in 1991",
-        "How DNS converts web URLs into IP addresses in milliseconds",
-    ],
-    "Mystery": [
-        "The mysterious Voynich Manuscript that no linguist or codebreaker can solve",
-        "What lies at the bottom of the Mariana Trench 36,000 feet down?",
-        "The mystery of the Wow! signal received from deep space in 1977",
-        "Unsolved historical mysteries that puzzle modern scientists",
-    ],
-    "Interesting Facts": [
-        "Unbelievable facts about the human body you were never taught in school",
-        "Crazy facts about animals that sound like fiction",
-        "Mind-bending facts about time dilation and Einstein's relativity",
-        "Surprising everyday items originally invented for space exploration",
-    ],
-    "Life Lessons": [
-        "The 1% mindset rule: How micro-habits compound into massive success",
-        "Lessons from ancient Stoicism that help master emotional control",
-        "Why consistency always beats intensity over long periods",
-        "The psychological power of adopting a growth mindset",
+    "Spiritual Life Lessons": [
+        "The mirror of Maya: Why clinging to temporary worldly illusions causes endless misery",
+        "The ancient secret of inner peace: The 4 ashrams of life and mastering time",
+        "Why anger is called the house of destruction: Lessons from the ancient sages",
     ],
 }
 
