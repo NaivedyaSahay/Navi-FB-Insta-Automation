@@ -117,60 +117,27 @@ def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> L
             logger.warning("Hugging Face client error: %s", hf_err)
 
     # 2. Free Pollinations FLUX endpoint fallback
+    # 2. Local AI Mythology Scenes fallback pool if network fails
     if len(saved) < 2:
-        logger.info("Attempting AI scene generation via Pollinations FLUX...")
-        for i, p in enumerate(prompts):
-            if i < len(saved):
-                continue
-            dest = config.OUTPUT_DIR / f"ai_scene_{i}.jpg"
-            try:
-                clean_p = f"{p}, vertical 9:16 divine indian mythology wallpaper, cinematic 8k"
-                enc = urllib.parse.quote(clean_p)
-                url = f"https://image.pollinations.ai/prompt/{enc}?width=768&height=1344&model=flux&nologo=true"
-                resp = requests.get(url, timeout=30)
-                if resp.status_code == 200 and len(resp.content) > 5000:
-                    dest.write_bytes(resp.content)
-                    saved.append(dest)
-            except Exception as exc:
-                logger.debug("Pollinations scene error: %s", exc)
+        logger.info("Checking local AI mythology scenes pool from %s...", config.LOCAL_MYTHOLOGY_SCENES_DIR)
+        fallback_scenes = _get_fallback_mythology_scenes()
+        if fallback_scenes:
+            needed = max(4 - len(saved), 2)
+            saved.extend(fallback_scenes[:needed])
 
     logger.info("Total AI mythological scenes ready: %d", len(saved))
     return saved
 
 
-def _generate_fallback_sacred_background(duration: float):
-    """Generate dynamic colorful gradient clips as last-resort fallback."""
-    logger.info("Generating animated sacred temple gradient fallback background...")
-    palettes = [
-        ((25, 10, 5), (95, 35, 10)),     # Deep Saffron / Sacred Flame
-        ((15, 10, 45), (65, 20, 95)),    # Celestial Night / Rudra
-        ((10, 25, 60), (20, 75, 135)),   # Sacred Waters / Yamuna
-        ((35, 15, 10), (110, 45, 15)),   # Sacred Sandalwood / Surya
-    ]
-
-    clip_dur = max(4.0, duration / len(palettes))
-    clips = []
-
-    for top_col, bot_col in palettes:
-        img = Image.new("RGB", (W, H))
-        draw = ImageDraw.Draw(img)
-        for y in range(H):
-            t = y / H
-            fill_col = (
-                int(top_col[0] * (1 - t) + bot_col[0] * t),
-                int(top_col[1] * (1 - t) + bot_col[1] * t),
-                int(top_col[2] * (1 - t) + bot_col[2] * t),
-            )
-            draw.line([(0, y), (W, y)], fill=fill_col)
-        clip_arr = np.array(img)
-        clips.append(ImageClip(clip_arr, duration=clip_dur).with_fps(FPS))
-
-    combined = concatenate_videoclips(clips)
-    if combined.duration < duration:
-        loops = int(np.ceil(duration / combined.duration))
-        combined = concatenate_videoclips([combined] * loops)
-
-    return combined.subclipped(0, duration)
+def _get_fallback_mythology_scenes() -> List[Path]:
+    """Retrieves pre-bundled 8k vertical mythological AI scenes from assets/mythology_scenes."""
+    folder = getattr(config, "LOCAL_MYTHOLOGY_SCENES_DIR", Path(__file__).parent / "assets" / "mythology_scenes")
+    if not folder.exists():
+        return []
+    import glob
+    imgs = [Path(f) for f in glob.glob(str(folder / "*.jpg")) if Path(f).stat().st_size > 1000]
+    random.shuffle(imgs)
+    return imgs
 
 
 def get_video_background(
@@ -189,10 +156,14 @@ def get_video_background(
         logger.info("Building tailored mythological scene prompts for keywords: %s", keywords)
         prompts = _build_default_mythological_prompts(keywords)
 
-    # 2. Generate high-quality vertical AI scenes
+    # 2. Generate high-quality vertical AI scenes (or pull from local AI pool)
     clip_paths = _fetch_ai_mythological_scenes(prompts, count=5)
 
-    # 3. If AI generation succeeded, stitch with Ken Burns 3D motion and crossfade
+    if not clip_paths:
+        logger.warning("No fresh AI scenes generated. Loading local AI mythological scenes...")
+        clip_paths = _get_fallback_mythology_scenes()
+
+    # 3. Stitch with Ken Burns 3D motion and crossfade
     if clip_paths:
         try:
             logger.info("Rendering %d AI scenes with Ken Burns slow zoom and cinematic crossfades...", len(clip_paths))
@@ -205,10 +176,8 @@ def get_video_background(
                 mode="crop_cover",
             )
         except Exception as exc:
-            logger.warning("Failed to stitch clips via video engine (%s). Using fallback background.", exc)
-
-    logger.warning("No visual assets retrieved. Using sacred fallback background.")
-    return _generate_fallback_sacred_background(target_duration)
+            logger.error("Failed to stitch clips via video engine: %s", exc)
+    raise RuntimeError("No AI mythological visual scenes found to render video.")
 
 
 # Alias for backward compatibility

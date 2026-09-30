@@ -26,6 +26,7 @@ GROQ_API_KEY: str     = os.getenv("GROQ_API_KEY", "")
 GEMINI_API_KEY: str   = os.getenv("GEMINI_API_KEY", "")
 HF_TOKEN: str         = os.getenv("HF_TOKEN", "")
 HF_IMAGE_MODEL: str   = os.getenv("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
+LOCAL_MYTHOLOGY_SCENES_DIR: Path = Path(__file__).parent / "assets" / "mythology_scenes"
 PEXELS_API_KEY: str   = os.getenv("PEXELS_API_KEY", "")      # optional
 PIXABAY_API_KEY: str  = os.getenv("PIXABAY_API_KEY", "")     # optional
 
