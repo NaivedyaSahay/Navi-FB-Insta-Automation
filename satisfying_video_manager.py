@@ -76,12 +76,14 @@ def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> L
 
             for i, p in enumerate(prompts):
                 dest = config.OUTPUT_DIR / f"ai_scene_{i}.jpg"
-                enhanced_prompt = (
-                    f"{p}, Japanese anime key visual, high-budget 2D anime style, Studio Ufotable aesthetic, "
-                    f"sharp anime line art, vibrant cel-shaded illustration, glowing electric energy aura, "
-                    f"radiant cosmic sparks, beautiful anime eyes, vertical 9:16 framing, completely animated, "
-                    f"masterpiece anime still, no realism, not a photograph, no 3D render"
-                )
+                if "ARRI Alexa" in p or "cinematic" in p.lower() or "8k" in p.lower():
+                    enhanced_prompt = f"{p}, 8k resolution, masterpiece, vertical 9:16 framing"
+                else:
+                    enhanced_prompt = (
+                        f"{p}, cinematic realism, dark fantasy grandeur, ancient Indian architecture, "
+                        f"dramatic chiaroscuro, volumetric lighting, shot on ARRI Alexa 65, "
+                        f"8k resolution, vertical 9:16 composition"
+                    )
                 try:
                     logger.info("🎨 Generating AI Scene #%d: '%s'...", i + 1, p[:60] + "...")
                     img = client.text_to_image(
@@ -97,9 +99,9 @@ def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> L
                     logger.warning("HF Scene #%d attempt 1 failed (%s). Retrying...", i + 1, exc)
                     time.sleep(1.0)
                     try:
-                        # Retry with shorter 2D anime prompt
+                        # Retry with concise cinematic prompt
                         img = client.text_to_image(
-                            prompt=f"{p}, 2D anime movie key visual, Studio Ufotable style, cel-shaded, vibrant glowing anime art, 8k, vertical 9:16, completely animated, no photo",
+                            prompt=f"{p}, epic Indian mythological cinema still, volumetric lighting, 8k, vertical 9:16",
                             model=config.HF_IMAGE_MODEL,
                             width=768,
                             height=1344,
