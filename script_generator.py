@@ -200,68 +200,12 @@ def _rich_template_fallback(topic: str) -> Dict[str, Any]:
 
 
 def generate_script(topic: str) -> Dict[str, Any]:
-    """Generate script JSON via Groq → Gemini → Rich offline fallback."""
-    logger.info("Generating Reels script for topic: '%s'", topic)
+    """Generate script JSON via Master Mythological Prompter Agent."""
+    logger.info("Generating Reels script via Master Mythological Prompter Agent: '%s'", topic)
+    from prompter import generate_mythological_prompt_pack
+    return generate_mythological_prompt_pack(topic)
 
-    # 1. Try Groq (priority model chain)
-    data = _call_groq_api(topic)
 
-    # 2. Try Gemini
-    if not data:
-        data = _call_gemini_api(topic)
-
-    # 3. Rich offline fallback
-    if not data:
-        data = _rich_template_fallback(topic)
-
-    # ── Clean script text ─────────────────────────────────────────────────────
-    script_text = data.get("script", "")
-    script_text = re.sub(r"\[.*?\]|\(.*?\)", "", script_text)   # remove stage directions
-    script_text = re.sub(r"<think>.*?</think>", "", script_text, flags=re.DOTALL)
-    script_text = re.sub(r"\s+", " ", script_text).strip()
-    data["script"] = script_text
-
-    # ── Enforce strict limits (Under 1 minute / 85-110 words) ─────────────────
-    words = data["script"].split()
-    if len(words) > 115:
-        truncated = " ".join(words[:115])
-        # Find last full sentence punctuation (।, ., ?, !) to avoid cut-off words
-        match = re.search(r"^(.*[।\.\?!])", truncated, flags=re.DOTALL)
-        if match and len(match.group(1).split()) >= 70:
-            data["script"] = match.group(1).strip()
-        else:
-            data["script"] = truncated
-
-    data["title"] = data.get("title", topic)[:60]
-    data["fb_reels_caption"] = data.get("fb_reels_caption", "")[:300]
-    data["ig_reels_caption"] = data.get("ig_reels_caption", "")[:300]
-    data["hashtags"] = data.get("hashtags", ["#SanatanDharma", "#LifeLessons"])[:10]
-    p1 = data.get("part_1_hook", "")
-    p2 = data.get("part_2_conflict", "")
-    p3 = data.get("part_3_climax", "")
-    p4 = data.get("part_4_lesson", "")
-
-    if p1 and p2 and p3 and p4:
-        counts = [max(1, len(p.split())) for p in [p1, p2, p3, p4]]
-        total_p = sum(counts)
-        data["scene_ratios"] = [c / total_p for c in counts]
-    else:
-        data["scene_ratios"] = [0.20, 0.32, 0.28, 0.20]
-
-    prompts = data.get("image_prompts", [])
-    if not isinstance(prompts, list) or len(prompts) < 4:
-        data["image_prompts"] = [
-            f"Cinematic 35mm film shot of {topic}, dramatic low angle, golden hour lighting, 9:16 vertical",
-            "Epic battlefield confrontation in ancient India, dust and arrows flying, warrior gripping celestial weapon, 9:16 vertical",
-            "Divine manifestation with cosmic radiant aura, dark monsoon clouds illuminated by golden lightning, 9:16 vertical",
-            "Peaceful ancient Himalayan temple at sunset, glowing brass diyas, timeless spiritual serenity, 9:16 vertical",
-        ]
-
-    logger.info(
-        "Script ready (%d words). Title: '%s'",
-        len(data["script"].split()), data.get("title", ""),
-    )
-    return data
 
 
 if __name__ == "__main__":

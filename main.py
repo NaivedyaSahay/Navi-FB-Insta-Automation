@@ -188,6 +188,10 @@ def main():
     elif cmd_or_topic == "schedule":
         interval = args.interval_hours or config.POST_EVERY_HOURS
         run_scheduler_loop(interval_hours=interval, category=args.category, voice=args.voice)
+    elif cmd_or_topic == "prompt":
+        from prompter import generate_mythological_prompt_pack, print_formatted_prompter_pack
+        pack = generate_mythological_prompt_pack(args.topic)
+        print_formatted_prompter_pack(pack)
     else:
         # Standard execution where argument is either topic or omitted
         topic = args.topic or cmd_or_topic
