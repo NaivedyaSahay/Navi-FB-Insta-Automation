@@ -81,6 +81,8 @@ LOCAL_SATISFYING_CLIPS_DIR.mkdir(parents=True, exist_ok=True)
 AUDIO_FILE: Path     = OUTPUT_DIR / "voiceover.mp3"
 VIDEO_FILE: Path     = OUTPUT_DIR / "final_video.mp4"
 BG_VIDEO_FILE: Path  = OUTPUT_DIR / "background.mp4"
+POSTED_TOPICS_FILE: Path = Path(__file__).parent / "posted_topics.json"
+USE_AI_VISUALS_ONLY: bool = True  # Strictly AI generated visuals; no stock video clips
 
 # ── Allowed & Blacklisted Topics ──────────────────────────────────────────────
 ALLOWED_CATEGORIES = [

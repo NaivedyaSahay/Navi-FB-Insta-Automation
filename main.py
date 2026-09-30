@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 import config
-from topic_picker import get_trending_topics
+from topic_picker import get_trending_topics, record_posted_topic
 from config import ALLOWED_CATEGORIES
 from script_generator import generate_script
 from voice_generator import generate_voiceover
@@ -124,6 +124,12 @@ def run_pipeline(
         caption=caption_to_use,
         no_upload=no_upload,
     )
+
+    # 7. Record topic to prevent repetition
+    try:
+        record_posted_topic(selected_topic, selected_category)
+    except Exception as exc:
+        logger.warning("Could not record posted topic: %s", exc)
 
     logger.info("==================================================")
     logger.info("  ✨ Pipeline Completed Successfully!             ")

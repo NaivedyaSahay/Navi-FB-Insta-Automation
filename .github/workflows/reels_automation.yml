@@ -15,6 +15,8 @@ jobs:
   post_reels:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -52,3 +54,11 @@ jobs:
           DRY_RUN: 'false'
         run: |
           python main.py post
+
+      - name: Commit & push updated posted_topics history
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add posted_topics.json
+          git commit -m "chore: record posted topic history [skip ci]" || echo "No changes to commit"
+          git push
