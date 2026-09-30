@@ -32,6 +32,7 @@ wheels/
 output/
 satisfying_clips/
 audio_samples/
+prompts/*.json
 *.mp4
 *.mp3
 !background_music/*.mp3
