@@ -64,11 +64,11 @@ Your niche is Hindu Mythology (सनातन धर्म, महाभार�
 
 2. Visual Prompter Engine:
    For every scene/segment, generate hyper-detailed, high-quality, cinematic visual prompts tailored for state-of-the-art AI generation tools (FLUX, Midjourney v6, Kling AI, Runway Gen-3):
-   - Camera & Optics: Specify camera angles (low-angle hero shot, Dutch tilt, wide panoramic), focal lengths (35mm anamorphic, 85mm portrait), and shallow depth of field.
-   - Subject & Character Design: Authentic Vedic silk pitambara, intricate embossed brass armor, realistic skin pores, battle dust, expressive eyes, and exact physical actions.
-   - Lighting & Atmosphere: Rembrandt lighting, volumetric golden hour sunbeams, atmospheric smoke, sacred temple diya glow, or dark monsoon storm clouds with lightning.
-   - Textures & Color Grade: Rich historical textures (carved ancient black stone, hammered gold, coarse canvas), warm filmic color grading, Kodachrome tones, photorealistic live-action cinema still, 8k resolution, no cartoon, no CGI plastic look.
-   - Composition: Vertical 9:16 aspect ratio framing.
+   - Art & Visual Style: High-end 3D cinematic mythological animation (stylized Unreal Engine 5 render, epic mythological anime/graphic novel masterpiece like 'The Legend of Hanuman' and 'Baahubali: Crown of Blood', vibrant, dynamic, and breathtaking).
+   - Camera & Optics: Specify camera angles (low-angle hero shot, Dutch tilt, wide panoramic anime shot), focal lengths (35mm anime cinema, 85mm stylized portrait), and dynamic anime speed lines / deep depth of field.
+   - Subject & Character Design: Stylized expressive anime/3D character design, radiant glowing eyes, glowing divine markings (tilak, third eye), authentic ornate Vedic silk and glowing golden armor, celestial weapons surging with divine energy.
+   - Lighting & Atmosphere: Radiant celestial auras (tejas / prabha mandal), volumetric god-rays, glowing golden lightning, ethereal temple mist, vibrant saturated mystical colors.
+   - Quality & Finish: 8k resolution, masterpiece digital anime illustration, sharp lines, cinematic cel-shading and 3D depth, rich textures, vertical 9:16 aspect ratio framing. No plain real-life camera photo look.
 
 ### Output Structure Required:
 You MUST respond with ONLY a valid JSON object matching the following structure:
@@ -237,7 +237,7 @@ def _get_default_prompter_pack(topic: str) -> Dict[str, Any]:
                 "scene_number": 1,
                 "segment_name": "The Hook (0-10s)",
                 "hindi_voiceover": "क्या आप जानते हैं कि महाभारत के सबसे शक्तिशाली योद्धा कर्ण का वध केवल एक बाण से नहीं, बल्कि उसके अतीत के कर्मों से हुआ था?",
-                "visual_prompt": "Cinematic low-angle close-up shot on 35mm anamorphic lens of warrior Karna in torn robes, divine golden armor glowing through chest, intense weathered eyes, stormy battlefield sunset, 9:16 vertical composition",
+                "visual_prompt": "Ultra-detailed 3D cinematic animation shot in Unreal Engine 5 style of warrior Karna in torn robes, divine golden armor radiating mystical solar energy, glowing eyes, stormy battlefield sunset, 8k anime concept art, 9:16 vertical composition",
                 "camera_motion": "Slow dramatic zoom-in on character face",
                 "lighting_style": "Volumetric golden hour sunbeams breaking through dust",
             },
@@ -245,7 +245,7 @@ def _get_default_prompter_pack(topic: str) -> Dict[str, Any]:
                 "scene_number": 2,
                 "segment_name": "The Conflict (10-25s)",
                 "hindi_voiceover": "जब कुरुक्षेत्र में कर्ण के रथ का पहिया भूमि में धंस गया, तब उसने कृष्ण से धर्म की दुहाई दी।",
-                "visual_prompt": "Photorealistic live-action Indian mythological movie still, Karna down on one knee in thick mud desperately gripping the wooden spokes of his trapped golden chariot wheel, flying arrows and smoke in the background, 8k, 9:16 vertical",
+                "visual_prompt": "Epic 3D animated Indian mythological movie still in Arcane and Legend of Hanuman style, Karna down on one knee desperately gripping the glowing wooden spokes of trapped chariot wheel, flying burning arrows and dark smoke, 8k, 9:16 vertical",
                 "camera_motion": "Dynamic slow pan across the battlefield confrontation",
                 "lighting_style": "Dark stormy skies with dramatic rim light on armor",
             },
@@ -253,7 +253,7 @@ def _get_default_prompter_pack(topic: str) -> Dict[str, Any]:
                 "scene_number": 3,
                 "segment_name": "The Climax (25-38s)",
                 "hindi_voiceover": "इस पर भगवान कृष्ण ने मुस्कुराते हुए पूछा—कर्ण, जब द्रौपदी का भरी सभा में अपमान हो रहा था, तब तुम्हारा धर्म कहाँ था?",
-                "visual_prompt": "Lord Krishna standing majestically on a celestial chariot, dusk-blue complexion, glowing peacock feather crown, piercing compassionate gaze, divine golden aura illuminating dark monsoon clouds, 35mm lens, 9:16 vertical",
+                "visual_prompt": "Lord Krishna in breathtaking 3D celestial animation, glowing dusk-blue skin, radiant peacock feather crown, serene all-knowing smile, blinding cosmic Sudarshana aura illuminating dark stormy skies with golden lightning, 8k, 9:16 vertical",
                 "camera_motion": "Expansive slow zoom-out revealing cosmic scale",
                 "lighting_style": "Blinding radiant celestial aura and golden lightning",
             },
@@ -261,7 +261,7 @@ def _get_default_prompter_pack(topic: str) -> Dict[str, Any]:
                 "scene_number": 4,
                 "segment_name": "The Life Lesson & CTA (38-50s)",
                 "hindi_voiceover": "इस कहानी से हम इंसानों को सबसे बड़ी सीख यह मिलती है कि अधर्म और गलत लोगों का साथ हमेशा पतन की ओर ले जाता है। सनातन ज्ञान के लिए फॉलो ज़रूर करें।",
-                "visual_prompt": "Ancient sacred Hindu stone temple at sunset in Himalayas, glowing brass oil lamps (diyas) flickering peacefully, sacred yagna fire smoke rising, warm ethereal mist, spiritual tranquility, 9:16 vertical composition",
+                "visual_prompt": "Serene ancient Himalayan stone temple in stylized Makoto Shinkai and Unreal Engine 5 3D animation, glowing brass diyas casting warm golden light, swirling sacred mantra incense smoke, majestic sunrise glow, spiritual peace, 9:16 vertical",
                 "camera_motion": "Gentle upward tilt towards sacred temple spire and dawn sky",
                 "lighting_style": "Warm ambient glow of brass oil lamps and soft morning mist",
             },

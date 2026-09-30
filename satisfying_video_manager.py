@@ -77,11 +77,10 @@ def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> L
             for i, p in enumerate(prompts):
                 dest = config.OUTPUT_DIR / f"ai_scene_{i}.jpg"
                 enhanced_prompt = (
-                    f"{p}, photorealistic live-action Indian mythological movie film still, "
-                    f"shot on 35mm anamorphic lens, 8k resolution, authentic ancient Vedic attire, "
-                    f"volumetric golden hour sunbeams, atmospheric dust and smoke particles, "
-                    f"realistic skin texture and pores, dramatic rim light, masterpiece, "
-                    f"no cartoon, no 3D animation, no CGI plastic, vertical 9:16 composition"
+                    f"{p}, masterpiece 3D mythological cinematic animation, Unreal Engine 5 stylized render, "
+                    f"epic mythological anime art style, stunning visual detail, vibrant celestial lighting, "
+                    f"radiant glowing divine aura, intricate Vedic ornaments, cinematic volumetric rays, "
+                    f"8k resolution, sharp cel-shaded depth, dynamic vertical 9:16 composition, no plain photo"
                 )
                 try:
                     logger.info("🎨 Generating AI Scene #%d: '%s'...", i + 1, p[:60] + "...")
@@ -98,9 +97,9 @@ def _fetch_ai_mythological_scenes(image_prompts: List[str], count: int = 5) -> L
                     logger.warning("HF Scene #%d attempt 1 failed (%s). Retrying...", i + 1, exc)
                     time.sleep(1.0)
                     try:
-                        # Retry with shorter prompt
+                        # Retry with shorter animation prompt
                         img = client.text_to_image(
-                            prompt=f"{p}, cinematic vertical 9:16 divine Indian mythology art, 8k, golden light",
+                            prompt=f"{p}, ultra-detailed 3D cinematic animated Indian mythology art, 8k, glowing divine aura, vertical 9:16",
                             model=config.HF_IMAGE_MODEL,
                             width=768,
                             height=1344,
